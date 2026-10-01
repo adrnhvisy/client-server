@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
@@ -37,6 +38,17 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        Button btnLogout = findViewById(R.id.btnLogout);
+        btnLogout.setOnClickListener(v -> {
+            // Opsional: Buat dialog konfirmasi dulu sebelum logout agar tidak sengaja terpencet
+            new AlertDialog.Builder(this)
+                    .setTitle("Konfirmasi Logout")
+                    .setMessage("Apakah Anda yakin ingin keluar dari akun?")
+                    .setPositiveButton("Ya", (dialog, which) -> performLogout())
+                    .setNegativeButton("Batal", null)
+                    .show();
+        });
 
         listViewStudents = findViewById(R.id.listViewStudent);
         fabAdd = findViewById(R.id.fabAddStudent);
@@ -219,5 +231,45 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, "Gagal Hapus: " + t.getMessage(), Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private void performLogout() {
+        SharedPrefManager prefManager = new SharedPrefManager(this);
+        String token = prefManager.getToken();
+
+        if (token == null) {
+            // Jika ternyata belum login
+            navigateToLogin();
+            return;
+        }
+
+        String bearerToken = "Bearer " + token;
+
+        // Memanggil API logout yang sudah kamu buat di ApiService
+        apiService.logout(bearerToken).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                if (response.isSuccessful() || response.code() == 401) {
+                    // Hapus token lokal meskipun dari server sukses atau unauthorized (401)
+                    prefManager.clearToken();
+                    Toast.makeText(MainActivity.this, "Logout Berhasil", Toast.LENGTH_SHORT).show();
+                    navigateToLogin();
+                } else {
+                    Toast.makeText(MainActivity.this, "Gagal Logout", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                Toast.makeText(MainActivity.this, "Koneksi Error: " + t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    // Helper untuk berpindah halaman ke LoginActivity
+    private void navigateToLogin() {
+        Intent intent = new Intent(MainActivity.this, LoginActivity.class);
+        startActivity(intent);
+        finish();
     }
 }

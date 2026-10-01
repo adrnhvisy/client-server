@@ -38,4 +38,8 @@ public interface ApiService {
     @DELETE("students/{id}")
     Call<Void> deleteStudent(@Header("Authorization") String token, @Path("id") int id);
 
+    @Headers("Accept: application/json")
+    @POST("logout")
+    Call<Void> logout(@Header("Authorization") String token);
+
 }
